@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, user-scalable=no">
+<title>Key Finder</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a2e;
+    color: #eee;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    overflow-y: auto;
+    -webkit-user-select: none;
+    user-select: none;
+    padding: 40px 20px;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    margin-bottom: 24px;
+    font-weight: 300;
+    letter-spacing: 0.05em;
+    color: #8888aa;
+  }
+
+  .section-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #6a6a88;
+    margin-bottom: 10px;
+  }
+
+  /* --- Chord selector --- */
+  .chord-selector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 28px;
+  }
+
+  .chord-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .chord-btn {
+    width: 60px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: #24243a;
+    color: #888;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .chord-btn:hover {
+    border-color: rgba(255,255,255,0.15);
+  }
+
+  .chord-btn.active {
+    background: #0f7b6c;
+    color: #fff;
+    border-color: rgba(255,255,255,0.1);
+  }
+
+  /* --- Results --- */
+  .results {
+    width: 100%;
+    max-width: 660px;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: #6a6a88;
+    font-size: 0.85rem;
+    margin-top: 20px;
+  }
+
+  /* --- Key card --- */
+  .key-card {
+    background: #24243a;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .key-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0fc9ae;
+    margin-bottom: 10px;
+  }
+
+  .degree-row {
+    display: flex;
+    gap: 4px;
+  }
+
+  .degree-cell {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.06);
+    gap: 2px;
+  }
+
+  .degree-cell.highlighted {
+    background: #0f7b6c;
+    color: #fff;
+  }
+
+  .degree-cell.dimmed {
+    background: #1e1e30;
+    color: #555;
+  }
+
+  .degree-num {
+    font-size: 0.55rem;
+    font-weight: 600;
+    opacity: 0.7;
+  }
+
+  .degree-chord {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  @media (max-width: 960px) {
+    .chord-btn { width: 50px; height: 38px; font-size: 0.75rem; }
+    .degree-cell { height: 38px; }
+    .degree-chord { font-size: 0.68rem; }
+  }
+
+  @media (max-width: 740px) {
+    h1 { font-size: 1.1rem; }
+    .chord-btn { width: 42px; height: 34px; font-size: 0.65rem; }
+    .degree-cell { height: 34px; }
+    .degree-chord { font-size: 0.6rem; }
+    .degree-num { font-size: 0.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Key Finder</h1>
+
+<div class="chord-selector">
+  <div class="section-label">Select Chords</div>
+  <div class="chord-row" id="majorRow"></div>
+  <div class="chord-row" id="minorRow"></div>
+</div>
+
+<div class="results" id="results">
+  <div class="empty-state">Select chords above to find matching keys</div>
+</div>
+
+<script>
+(function () {
+  // --- Key data (circle-of-fifths order) ---
+  var MAJOR_KEYS = [
+    { name: 'C Major',  notes: ['C','D','E','F','G','A','B'] },
+    { name: 'G Major',  notes: ['G','A','B','C','D','E','F\u266f'] },
+    { name: 'D Major',  notes: ['D','E','F\u266f','G','A','B','C\u266f'] },
+    { name: 'A Major',  notes: ['A','B','C\u266f','D','E','F\u266f','G\u266f'] },
+    { name: 'E Major',  notes: ['E','F\u266f','G\u266f','A','B','C\u266f','D\u266f'] },
+    { name: 'B Major',  notes: ['B','C\u266f','D\u266f','E','F\u266f','G\u266f','A\u266f'] },
+    { name: 'F Major',  notes: ['F','G','A','B\u266d','C','D','E'] },
+    { name: 'B\u266d Major', notes: ['B\u266d','C','D','E\u266d','F','G','A'] },
+    { name: 'E\u266d Major', notes: ['E\u266d','F','G','A\u266d','B\u266d','C','D'] },
+    { name: 'A\u266d Major', notes: ['A\u266d','B\u266d','C','D\u266d','E\u266d','F','G'] },
+    { name: 'D\u266d Major', notes: ['D\u266d','E\u266d','F','G\u266d','A\u266d','B\u266d','C'] },
+    { name: 'F\u266f Major', notes: ['F\u266f','G\u266f','A\u266f','B','C\u266f','D\u266f','E\u266f'] },
+  ];
+
+  var MINOR_KEYS = [
+    { name: 'A Minor',  notes: ['A','B','C','D','E','F','G'] },
+    { name: 'E Minor',  notes: ['E','F\u266f','G','A','B','C','D'] },
+    { name: 'B Minor',  notes: ['B','C\u266f','D','E','F\u266f','G','A'] },
+    { name: 'F\u266f Minor', notes: ['F\u266f','G\u266f','A','B','C\u266f','D','E'] },
+    { name: 'C\u266f Minor', notes: ['C\u266f','D\u266f','E','F\u266f','G\u266f','A','B'] },
+    { name: 'G\u266f Minor', notes: ['G\u266f','A\u266f','B','C\u266f','D\u266f','E','F\u266f'] },
+    { name: 'D Minor',  notes: ['D','E','F','G','A','B\u266d','C'] },
+    { name: 'G Minor',  notes: ['G','A','B\u266d','C','D','E\u266d','F'] },
+    { name: 'C Minor',  notes: ['C','D','E\u266d','F','G','A\u266d','B\u266d'] },
+    { name: 'F Minor',  notes: ['F','G','A\u266d','B\u266d','C','D\u266d','E\u266d'] },
+    { name: 'B\u266d Minor', notes: ['B\u266d','C','D\u266d','E\u266d','F','G\u266d','A\u266d'] },
+    { name: 'E\u266d Minor', notes: ['E\u266d','F','G\u266d','A\u266d','B\u266d','C\u266d','D\u266d'] },
+  ];
+
+  // Chord quality patterns per degree
+  var MAJOR_QUALITY = ['', 'm', 'm', '', '', 'm', 'dim'];
+  var MINOR_QUALITY = ['m', 'dim', '', 'm', 'm', '', ''];
+
+  function buildChords(notes, qualities) {
+    return notes.map(function (note, i) {
+      return note + qualities[i];
+    });
+  }
+
+  // Build all keys with their chords
+  var ALL_KEYS = [];
+  MAJOR_KEYS.forEach(function (key) {
+    ALL_KEYS.push({
+      name: key.name,
+      chords: buildChords(key.notes, MAJOR_QUALITY)
+    });
+  });
+  MINOR_KEYS.forEach(function (key) {
+    ALL_KEYS.push({
+      name: key.name,
+      chords: buildChords(key.notes, MINOR_QUALITY)
+    });
+  });
+
+  // --- Selectable chords (natural roots only) ---
+  var MAJOR_CHORDS = ['A','B','C','D','E','F','G'];
+  var MINOR_CHORDS = ['Am','Bm','Cm','Dm','Em','Fm','Gm'];
+  var selectedChords = new Set();
+
+  // --- Build chord buttons ---
+  var majorRow = document.getElementById('majorRow');
+  var minorRow = document.getElementById('minorRow');
+  var resultsEl = document.getElementById('results');
+
+  function createBtn(chord, parent) {
+    var btn = document.createElement('div');
+    btn.className = 'chord-btn';
+    btn.textContent = chord;
+    btn.addEventListener('click', function () {
+      if (selectedChords.has(chord)) {
+        selectedChords.delete(chord);
+        btn.classList.remove('active');
+      } else {
+        selectedChords.add(chord);
+        btn.classList.add('active');
+      }
+      updateResults();
+    });
+    parent.appendChild(btn);
+  }
+
+  MAJOR_CHORDS.forEach(function (c) { createBtn(c, majorRow); });
+  MINOR_CHORDS.forEach(function (c) { createBtn(c, minorRow); });
+
+  // --- Update results ---
+  function updateResults() {
+    if (selectedChords.size === 0) {
+      resultsEl.innerHTML = '<div class="empty-state">Select chords above to find matching keys</div>';
+      return;
+    }
+
+    // Find matching keys
+    var matches = ALL_KEYS.filter(function (key) {
+      var chordSet = new Set(key.chords);
+      var allFound = true;
+      selectedChords.forEach(function (sc) {
+        if (!chordSet.has(sc)) allFound = false;
+      });
+      return allFound;
+    });
+
+    if (matches.length === 0) {
+      resultsEl.innerHTML = '<div class="empty-state">No keys contain all selected chords</div>';
+      return;
+    }
+
+    resultsEl.innerHTML = '';
+    matches.forEach(function (key) {
+      var card = document.createElement('div');
+      card.className = 'key-card';
+
+      var nameEl = document.createElement('div');
+      nameEl.className = 'key-name';
+      nameEl.textContent = key.name;
+      card.appendChild(nameEl);
+
+      var row = document.createElement('div');
+      row.className = 'degree-row';
+
+      key.chords.forEach(function (chord, i) {
+        var cell = document.createElement('div');
+        cell.className = 'degree-cell';
+
+        var isDim = chord.indexOf('dim') !== -1;
+        if (!isDim && selectedChords.has(chord)) {
+          cell.classList.add('highlighted');
+        } else {
+          cell.classList.add('dimmed');
+        }
+
+        var numSpan = document.createElement('span');
+        numSpan.className = 'degree-num';
+        numSpan.textContent = (i + 1);
+        cell.appendChild(numSpan);
+
+        var chordSpan = document.createElement('span');
+        chordSpan.className = 'degree-chord';
+        chordSpan.textContent = chord;
+        cell.appendChild(chordSpan);
+
+        row.appendChild(cell);
+      });
+
+      card.appendChild(row);
+      resultsEl.appendChild(card);
+    });
+  }
+})();
+</script>
+</body>
+</html>
