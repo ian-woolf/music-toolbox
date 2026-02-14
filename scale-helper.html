@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, user-scalable=no">
+<title>Scale Helper</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a2e;
+    color: #eee;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    margin-bottom: 24px;
+    font-weight: 300;
+    letter-spacing: 0.05em;
+    color: #8888aa;
+  }
+
+  :root {
+    --cell: 70px;
+    --cell-h: 64px;
+    --gap: 3px;
+    --step: calc(var(--cell) + var(--gap));
+    --sep-w: 18px;
+    --oct1-w: calc(13 * var(--cell) + 12 * var(--gap));
+    --oct-ext-w: calc(12 * var(--cell) + 11 * var(--gap));
+    --total-w: calc(var(--oct1-w) + 3 * var(--sep-w) + 3 * var(--oct-ext-w));
+    --deg-scale-bg: #3b3b5c;
+    --deg-scale-text: #c8c8e0;
+    --deg-nonscale-bg: #24243a;
+    --deg-nonscale-text: #555;
+    --note-scale-bg: #0f7b6c;
+    --note-scale-text: #fff;
+    --note-nonscale-bg: #1e1e30;
+    --note-nonscale-text: #555;
+  }
+
+  .rows {
+    position: relative;
+    width: var(--total-w);
+    transform: translateX(calc((3 * var(--sep-w) + 3 * var(--oct-ext-w)) / 2));
+  }
+
+  .row-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #6a6a88;
+    margin-bottom: 6px;
+  }
+
+  .rows-inner {
+    position: relative;
+    width: var(--total-w);
+  }
+
+  /* --- Top row: scale degrees --- */
+  .degree-row {
+    display: flex;
+    gap: var(--gap);
+  }
+
+  .degree-cell {
+    width: var(--cell);
+    height: var(--cell-h);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.2;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .degree-cell.scale {
+    background: var(--deg-scale-bg);
+    color: var(--deg-scale-text);
+  }
+
+  .degree-cell.non-scale {
+    background: var(--deg-nonscale-bg);
+    color: var(--deg-nonscale-text);
+  }
+
+  .degree-cell.oct-boundary {
+    margin-left: calc(var(--sep-w) - var(--gap));
+  }
+
+  /* --- Divider (scoped to first octave) --- */
+  .row-divider {
+    width: var(--oct1-w);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0;
+  }
+
+  .row-divider::before,
+  .row-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #444, transparent);
+  }
+
+  .row-divider span {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #555;
+    white-space: nowrap;
+  }
+
+  /* --- Note row --- */
+  .note-row {
+    display: flex;
+    cursor: grab;
+  }
+
+  .note-row:active { cursor: grabbing; }
+
+  .note-viewport {
+    height: var(--cell-h);
+    overflow: hidden;
+    position: relative;
+    border: 2px solid #0f7b6c44;
+    box-shadow: 0 0 20px rgba(15, 123, 108, 0.12), inset 0 0 12px rgba(0,0,0,0.3);
+    border-radius: 8px;
+  }
+
+  .note-viewport.oct1 {
+    width: var(--oct1-w);
+  }
+
+  .note-viewport.oct-ext {
+    width: var(--oct-ext-w);
+  }
+
+  .sep-gap {
+    width: var(--sep-w);
+    flex-shrink: 0;
+  }
+
+  .note-track {
+    display: flex;
+    gap: var(--gap);
+    position: relative;
+    will-change: transform;
+    height: 100%;
+  }
+
+  .note-track.animating {
+    transition: transform 0.3s ease;
+  }
+
+  .note-cell {
+    width: var(--cell);
+    height: var(--cell-h);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.2;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .note-cell.scale {
+    background: var(--note-scale-bg);
+    color: var(--note-scale-text);
+  }
+
+  .note-cell.non-scale {
+    background: var(--note-nonscale-bg);
+    color: var(--note-nonscale-text);
+  }
+
+  /* --- Octave separator lines (span both rows) --- */
+  .oct-separator {
+    position: absolute;
+    transform: translateX(-50%);
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #555;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* --- Fade overlay for right edge --- */
+  .fade-right {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 160px;
+    height: 100%;
+    background: linear-gradient(to right, transparent, #1a1a2e);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* --- Scale picker --- */
+  .scale-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .scale-picker label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #6a6a88;
+  }
+
+  .scale-picker select {
+    appearance: none;
+    background: #24243a;
+    color: #c8c8e0;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    padding: 8px 36px 8px 14px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: border-color 0.15s;
+  }
+
+  .scale-picker select:hover {
+    border-color: rgba(255,255,255,0.25);
+  }
+
+  .scale-picker select:focus {
+    outline: none;
+    border-color: #0f7b6c;
+  }
+
+  .root-label {
+    margin-top: 16px;
+    font-size: 1.1rem;
+    color: #8888aa;
+    height: 1.4em;
+  }
+
+  .root-label span {
+    color: #0fc9ae;
+    font-weight: 700;
+  }
+
+  @media (max-width: 960px) {
+    :root { --cell: 54px; --cell-h: 52px; }
+    .degree-cell, .note-cell { font-size: 0.72rem; }
+  }
+
+  @media (max-width: 740px) {
+    :root { --cell: 42px; --cell-h: 44px; }
+    .degree-cell, .note-cell { font-size: 0.62rem; }
+    h1 { font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Scale Helper</h1>
+
+<div class="scale-picker">
+  <label for="scaleSelect">Scale</label>
+  <select id="scaleSelect"></select>
+</div>
+
+<div class="rows">
+  <div class="row-label">Scale Degrees</div>
+  <div class="rows-inner">
+    <div class="degree-row" id="degreeRow"></div>
+    <div class="row-divider"><span>drag or click</span></div>
+    <div class="note-row" id="noteRow"></div>
+  </div>
+</div>
+
+<div class="root-label">Root: <span id="rootName">C</span></div>
+<div class="fade-right"></div>
+
+<script>
+(function () {
+  // --- Config ---
+  const NUM_OCTAVES = 4;
+  const COPIES = 10;
+  const TOTAL_CELLS = COPIES * 12;
+  const CENTER_START = 4 * 12;
+
+  const SCALES = [
+    { name: 'Ionian (Major)',         semitones: [0, 2, 4, 5, 7, 9, 11] },
+    { name: 'Dorian',                 semitones: [0, 2, 3, 5, 7, 9, 10] },
+    { name: 'Phrygian',               semitones: [0, 1, 3, 5, 7, 8, 10] },
+    { name: 'Lydian',                 semitones: [0, 2, 4, 6, 7, 9, 11] },
+    { name: 'Mixolydian',             semitones: [0, 2, 4, 5, 7, 9, 10] },
+    { name: 'Aeolian (Natural Minor)',semitones: [0, 2, 3, 5, 7, 8, 10] },
+    { name: 'Locrian',                semitones: [0, 1, 3, 5, 6, 8, 10] },
+    { name: 'Major Pentatonic',       semitones: [0, 2, 4, 7, 9] },
+    { name: 'Minor Pentatonic',       semitones: [0, 3, 5, 7, 10] },
+    { name: 'Melodic Minor',          semitones: [0, 2, 3, 5, 7, 9, 11] },
+    { name: 'Whole-Half Diminished',   semitones: [0, 2, 3, 5, 6, 8, 9, 11] },
+    { name: 'Half-Whole Diminished',   semitones: [0, 1, 3, 4, 6, 7, 9, 10] },
+    { name: 'Whole Tone',             semitones: [0, 2, 4, 6, 8, 10] },
+  ];
+
+  let currentSemitones = SCALES[0].semitones;
+
+  const NOTE_NAMES = [
+    'C', 'C♯/D♭', 'D', 'D♯/E♭', 'E', 'F',
+    'F♯/G♭', 'G', 'G♯/A♭', 'A', 'A♯/B♭', 'B'
+  ];
+
+  // --- Generate degree labels ---
+  const OCT1_LABELS = [
+    '1', '♯1/♭2', '2', '♯2/♭3', '3', '4',
+    '♯4/♭5', '5', '♯5/♭6', '6', '♯6/♭7', '7', '8'
+  ];
+
+  function makeExtLabels(N) {
+    return [
+      '♯'+N+'/♭'+(N+1), ''+(N+1), '♯'+(N+1)+'/♭'+(N+2), ''+(N+2),
+      ''+(N+3), '♯'+(N+3)+'/♭'+(N+4), ''+(N+4), '♯'+(N+4)+'/♭'+(N+5),
+      ''+(N+5), '♯'+(N+5)+'/♭'+(N+6), ''+(N+6), ''+(N+7)
+    ];
+  }
+
+  const allLabels = [...OCT1_LABELS];
+  let lastDeg = 8;
+  for (let o = 1; o < NUM_OCTAVES; o++) {
+    allLabels.push(...makeExtLabels(lastDeg));
+    lastDeg += 7;
+  }
+
+  // --- Compute which degree-cell indices are "in scale" ---
+  function computeScaleIndices(semitones) {
+    const s = new Set(semitones);
+    const out = new Set();
+    // First octave: indices 0-12 map to semitones 0-12
+    for (let i = 0; i <= 12; i++) {
+      if (s.has(i % 12)) out.add(i);
+    }
+    // Extension octaves: index = base + k, semitone = (base + k) % 12
+    for (let o = 1; o < NUM_OCTAVES; o++) {
+      const base = 13 + (o - 1) * 12;
+      for (let k = 0; k < 12; k++) {
+        if (s.has((base + k) % 12)) out.add(base + k);
+      }
+    }
+    return out;
+  }
+
+  // --- Octave boundary indices & semitone starts ---
+  const OCT_BOUNDARIES = new Set();
+  const OCT_STARTS = [0];
+  for (let o = 1; o < NUM_OCTAVES; o++) {
+    const idx = 13 + (o - 1) * 12;
+    OCT_BOUNDARIES.add(idx);
+    OCT_STARTS.push(idx);
+  }
+
+  // --- DOM ---
+  const degreeRow = document.getElementById('degreeRow');
+  const noteRow = document.getElementById('noteRow');
+  const rowsInner = document.querySelector('.rows-inner');
+  const rootNameEl = document.getElementById('rootName');
+  const scaleSelect = document.getElementById('scaleSelect');
+
+  // Build scale selector options
+  SCALES.forEach((scale, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = scale.name;
+    scaleSelect.appendChild(opt);
+  });
+
+  scaleSelect.addEventListener('change', () => {
+    currentSemitones = SCALES[scaleSelect.value].semitones;
+    updateDegreeHighlights();
+    highlightNotes();
+  });
+
+  // Build degree cells (store refs for dynamic updates)
+  const degreeCells = [];
+  allLabels.forEach((label, i) => {
+    const el = document.createElement('div');
+    el.className = 'degree-cell non-scale';
+    if (OCT_BOUNDARIES.has(i)) el.classList.add('oct-boundary');
+    el.textContent = label;
+    degreeRow.appendChild(el);
+    degreeCells.push(el);
+  });
+
+  function updateDegreeHighlights() {
+    const indices = computeScaleIndices(currentSemitones);
+    degreeCells.forEach((el, i) => {
+      const base = OCT_BOUNDARIES.has(i) ? 'degree-cell oct-boundary' : 'degree-cell';
+      el.className = base + ' ' + (indices.has(i) ? 'scale' : 'non-scale');
+    });
+  }
+
+  // Build note viewports + tracks
+  const tracks = [];
+  const cellArrays = [];
+
+  for (let o = 0; o < NUM_OCTAVES; o++) {
+    if (o > 0) {
+      const gap = document.createElement('div');
+      gap.className = 'sep-gap';
+      noteRow.appendChild(gap);
+    }
+    const vp = document.createElement('div');
+    vp.className = 'note-viewport ' + (o === 0 ? 'oct1' : 'oct-ext');
+    const trk = document.createElement('div');
+    trk.className = 'note-track';
+    const cells = [];
+    for (let i = 0; i < TOTAL_CELLS; i++) {
+      const el = document.createElement('div');
+      el.className = 'note-cell non-scale';
+      el.textContent = NOTE_NAMES[i % 12];
+      el.dataset.noteIndex = i;
+      trk.appendChild(el);
+      cells.push(el);
+    }
+    vp.appendChild(trk);
+    noteRow.appendChild(vp);
+    tracks.push(trk);
+    cellArrays.push(cells);
+  }
+
+  // Build separator lines (positioned by JS)
+  const seps = [];
+  for (let o = 1; o < NUM_OCTAVES; o++) {
+    const el = document.createElement('div');
+    el.className = 'oct-separator';
+    rowsInner.appendChild(el);
+    seps.push(el);
+  }
+
+  // --- Geometry ---
+  let cellW, gapW, stepW;
+
+  function measureGeometry() {
+    const s = getComputedStyle(document.documentElement);
+    cellW = parseFloat(s.getPropertyValue('--cell'));
+    gapW = parseFloat(s.getPropertyValue('--gap'));
+    stepW = cellW + gapW;
+  }
+
+  function positionSeparators() {
+    const oct1W = 13 * cellW + 12 * gapW;
+    const extW = 12 * cellW + 11 * gapW;
+    const sepW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sep-w'));
+    seps.forEach((el, i) => {
+      el.style.left = (oct1W + i * (sepW + extW) + sepW / 2) + 'px';
+    });
+  }
+
+  measureGeometry();
+  positionSeparators();
+
+  window.addEventListener('resize', () => {
+    measureGeometry();
+    positionSeparators();
+    setOffset(currentOffset, false);
+    highlightNotes();
+  });
+
+  // --- State ---
+  let currentOffset = -CENTER_START * stepW;
+  let dragging = false;
+  let startX = 0;
+  let startOffset = 0;
+  let hasMoved = false;
+
+  function setOffset(px, animate) {
+    currentOffset = px;
+    tracks.forEach((trk, o) => {
+      const off = px - OCT_STARTS[o] * stepW;
+      if (animate) trk.classList.add('animating');
+      else trk.classList.remove('animating');
+      trk.style.transform = 'translateX(' + off + 'px)';
+    });
+  }
+
+  tracks[0].addEventListener('transitionend', () => {
+    tracks.forEach(t => t.classList.remove('animating'));
+    wrapOffset();
+    highlightNotes();
+  });
+
+  function snapToNearest(animate) {
+    const snapped = Math.round(-currentOffset / stepW);
+    setOffset(-snapped * stepW, animate);
+    highlightNotes();
+  }
+
+  function wrapOffset() {
+    const idx = Math.round(-currentOffset / stepW);
+    const drift = idx - CENTER_START;
+    if (Math.abs(drift) >= 12) {
+      const delta = Math.round(drift / 12) * 12 * stepW;
+      currentOffset += delta;
+      if (dragging) startOffset += delta;
+      tracks.forEach((trk, o) => {
+        trk.classList.remove('animating');
+        trk.style.transform = 'translateX(' + (currentOffset - OCT_STARTS[o] * stepW) + 'px)';
+      });
+    }
+  }
+
+  function highlightNotes() {
+    const rootIdx = Math.round(-currentOffset / stepW);
+    const rootNote = ((rootIdx % 12) + 12) % 12;
+    const inScale = new Set();
+    currentSemitones.forEach(s => inScale.add((rootNote + s) % 12));
+
+    cellArrays.forEach(cells => {
+      cells.forEach((el, i) => {
+        el.className = 'note-cell ' + (inScale.has(i % 12) ? 'scale' : 'non-scale');
+      });
+    });
+    rootNameEl.textContent = NOTE_NAMES[rootNote];
+  }
+
+  // --- Interaction ---
+  function handleClick(e) {
+    const cell = e.target.closest('.note-cell');
+    if (!cell) return;
+    setOffset(-parseInt(cell.dataset.noteIndex, 10) * stepW, true);
+    highlightNotes();
+  }
+
+  function pointerDown(x) {
+    dragging = true;
+    hasMoved = false;
+    startX = x;
+    startOffset = currentOffset;
+    tracks.forEach(t => t.classList.remove('animating'));
+  }
+
+  function pointerMove(x) {
+    if (!dragging) return;
+    const dx = x - startX;
+    if (Math.abs(dx) > 3) hasMoved = true;
+    setOffset(startOffset + dx, false);
+    wrapOffset();
+    highlightNotes();
+  }
+
+  function pointerUp(e) {
+    if (!dragging) return;
+    dragging = false;
+    snapToNearest(true);
+    if (!hasMoved) handleClick(e);
+  }
+
+  noteRow.addEventListener('mousedown', e => { e.preventDefault(); pointerDown(e.clientX); });
+  window.addEventListener('mousemove', e => pointerMove(e.clientX));
+  window.addEventListener('mouseup', e => pointerUp(e));
+
+  noteRow.addEventListener('touchstart', e => { pointerDown(e.touches[0].clientX); }, { passive: true });
+  window.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); pointerMove(e.touches[0].clientX); }, { passive: false });
+  window.addEventListener('touchend', e => pointerUp(e));
+
+  // --- Init ---
+  updateDegreeHighlights();
+  setOffset(currentOffset, false);
+  highlightNotes();
+})();
+</script>
+</body>
+</html>
