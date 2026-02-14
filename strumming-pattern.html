@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, user-scalable=no">
+<title>Strumming Pattern</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a2e;
+    color: #eee;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    -webkit-user-select: none;
+    user-select: none;
+    padding: 40px 20px;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    margin-bottom: 24px;
+    font-weight: 300;
+    letter-spacing: 0.05em;
+    color: #8888aa;
+  }
+
+  /* --- Controls row --- */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .control-group label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #6a6a88;
+  }
+
+  .controls select {
+    appearance: none;
+    background: #24243a;
+    color: #c8c8e0;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    padding: 8px 36px 8px 14px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: border-color 0.15s;
+  }
+
+  .controls select:hover {
+    border-color: rgba(255,255,255,0.25);
+  }
+
+  .controls select:focus {
+    outline: none;
+    border-color: #0f7b6c;
+  }
+
+  .tempo-value {
+    font-size: 0.9rem;
+    color: #0fc9ae;
+    font-weight: 600;
+    min-width: 3.2em;
+    text-align: center;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 140px;
+    height: 4px;
+    background: #3b3b5c;
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #0f7b6c;
+    cursor: pointer;
+    border: none;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #0f7b6c;
+    cursor: pointer;
+    border: none;
+  }
+
+  /* --- Beat grid --- */
+  .grid-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    margin-bottom: 28px;
+  }
+
+  .bar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .bar-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #6a6a88;
+  }
+
+  .beat-labels {
+    display: flex;
+    gap: 3px;
+  }
+
+  .beat-label {
+    width: 44px;
+    text-align: center;
+    font-size: 0.7rem;
+    color: #6a6a88;
+  }
+
+  .beat-label.downbeat {
+    color: #8888aa;
+    font-weight: 600;
+  }
+
+  .beat-cells {
+    display: flex;
+    gap: 3px;
+  }
+
+  .beat-cell {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: #24243a;
+    border: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+  }
+
+  .beat-cell:hover {
+    border-color: rgba(255,255,255,0.15);
+  }
+
+  .beat-cell.downbeat {
+    border-bottom: 2px solid #3b3b5c;
+  }
+
+  .beat-cell.active {
+    background: #0f7b6c;
+    border-color: rgba(255,255,255,0.1);
+  }
+
+  .beat-cell.active.downbeat {
+    border-bottom-color: #0a5a4e;
+  }
+
+  .beat-cell.playhead {
+    box-shadow: 0 0 12px rgba(15, 201, 174, 0.6), 0 0 4px rgba(15, 201, 174, 0.3);
+    border-color: #0fc9ae;
+  }
+
+  /* --- Transport --- */
+  .transport {
+    display: flex;
+    gap: 12px;
+  }
+
+  .transport button {
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    color: #ccc;
+    background: #2e2e48;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 10px 28px;
+    font-family: inherit;
+    font-weight: 600;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .transport button:hover {
+    background: #3a3a58;
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  .transport button.playing {
+    background: #7b2d2d;
+    border-color: #a04040;
+    color: #f0c0c0;
+  }
+
+  .transport button.playing:hover {
+    background: #8a3535;
+  }
+
+  @media (max-width: 960px) {
+    .beat-cell { width: 36px; height: 36px; }
+    .beat-label { width: 36px; font-size: 0.62rem; }
+  }
+
+  @media (max-width: 740px) {
+    h1 { font-size: 1.1rem; }
+    .beat-cell { width: 30px; height: 30px; }
+    .beat-label { width: 30px; font-size: 0.55rem; }
+    .controls { gap: 16px; }
+    input[type="range"] { width: 100px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Strumming Pattern</h1>
+
+<div class="controls">
+  <div class="control-group">
+    <label for="barsSelect">Bars</label>
+    <select id="barsSelect">
+      <option value="1">1</option>
+      <option value="2" selected>2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="tempoSlider">Tempo</label>
+    <input type="range" id="tempoSlider" min="40" max="240" value="120">
+    <span class="tempo-value" id="tempoDisplay">120</span>
+  </div>
+
+  <div class="control-group">
+    <label for="subdivSelect">Subdivision</label>
+    <select id="subdivSelect">
+      <option value="4">Quarter</option>
+      <option value="8" selected>Eighth</option>
+      <option value="16">Sixteenth</option>
+    </select>
+  </div>
+</div>
+
+<div class="grid-container" id="gridContainer"></div>
+
+<div class="transport">
+  <button id="playBtn">Play</button>
+  <button id="clearBtn">Clear</button>
+</div>
+
+<script>
+(function () {
+  // --- State ---
+  var state = {
+    bars: 2,
+    tempo: 120,
+    subdiv: 8,
+    // beats[barIndex][cellIndex] = true/false
+    beats: []
+  };
+
+  // --- DOM refs ---
+  var barsSelect = document.getElementById('barsSelect');
+  var tempoSlider = document.getElementById('tempoSlider');
+  var tempoDisplay = document.getElementById('tempoDisplay');
+  var subdivSelect = document.getElementById('subdivSelect');
+  var gridContainer = document.getElementById('gridContainer');
+  var playBtn = document.getElementById('playBtn');
+  var clearBtn = document.getElementById('clearBtn');
+
+  // --- Audio ---
+  var audioCtx = null;
+  var playing = false;
+  var schedulerTimer = null;
+  var rafId = null;
+  var nextNoteTime = 0;
+  var currentStep = 0;
+  var scheduledEvents = [];
+  var lookahead = 0.1;     // seconds ahead to schedule
+  var timerInterval = 25;  // ms between scheduler calls
+
+  function cellsPerBar() {
+    return state.subdiv;
+  }
+
+  function totalCells() {
+    return state.bars * cellsPerBar();
+  }
+
+  // --- Beat labels ---
+  function getLabels(subdiv) {
+    var labels = [];
+    for (var beat = 1; beat <= 4; beat++) {
+      if (subdiv === 4) {
+        labels.push({ text: '' + beat, isDownbeat: true });
+      } else if (subdiv === 8) {
+        labels.push({ text: '' + beat, isDownbeat: true });
+        labels.push({ text: '+', isDownbeat: false });
+      } else {
+        labels.push({ text: '' + beat, isDownbeat: true });
+        labels.push({ text: 'e', isDownbeat: false });
+        labels.push({ text: '+', isDownbeat: false });
+        labels.push({ text: 'a', isDownbeat: false });
+      }
+    }
+    return labels;
+  }
+
+  // --- Init beats array ---
+  function initBeats() {
+    state.beats = [];
+    for (var b = 0; b < state.bars; b++) {
+      var bar = [];
+      for (var c = 0; c < cellsPerBar(); c++) {
+        bar.push(false);
+      }
+      state.beats.push(bar);
+    }
+  }
+
+  // --- Convert beats to canonical 16th-note grid ---
+  function toSixteenths(barBeats, fromSubdiv) {
+    var grid = [];
+    for (var i = 0; i < 16; i++) grid.push(false);
+    var factor = 16 / fromSubdiv;
+    for (var i = 0; i < fromSubdiv; i++) {
+      if (barBeats[i]) {
+        grid[i * factor] = true;
+      }
+    }
+    return grid;
+  }
+
+  function fromSixteenths(grid, toSubdiv) {
+    var factor = 16 / toSubdiv;
+    var out = [];
+    for (var i = 0; i < toSubdiv; i++) {
+      out.push(grid[i * factor] || false);
+    }
+    return out;
+  }
+
+  // --- Build grid UI ---
+  var cellEls = []; // flat array of all cell elements
+
+  function buildGrid() {
+    gridContainer.innerHTML = '';
+    cellEls = [];
+    var labels = getLabels(state.subdiv);
+    var cpb = cellsPerBar();
+
+    for (var b = 0; b < state.bars; b++) {
+      var group = document.createElement('div');
+      group.className = 'bar-group';
+
+      var barLabel = document.createElement('div');
+      barLabel.className = 'bar-label';
+      barLabel.textContent = 'Bar ' + (b + 1);
+      group.appendChild(barLabel);
+
+      var labelsRow = document.createElement('div');
+      labelsRow.className = 'beat-labels';
+      for (var c = 0; c < cpb; c++) {
+        var lbl = document.createElement('div');
+        lbl.className = 'beat-label';
+        if (labels[c].isDownbeat) lbl.classList.add('downbeat');
+        lbl.textContent = labels[c].text;
+        labelsRow.appendChild(lbl);
+      }
+      group.appendChild(labelsRow);
+
+      var cellsRow = document.createElement('div');
+      cellsRow.className = 'beat-cells';
+      for (var c = 0; c < cpb; c++) {
+        var cell = document.createElement('div');
+        cell.className = 'beat-cell';
+        if (labels[c].isDownbeat) cell.classList.add('downbeat');
+        if (state.beats[b][c]) cell.classList.add('active');
+        cell.dataset.bar = b;
+        cell.dataset.cell = c;
+        cell.addEventListener('click', onCellClick);
+        cellsRow.appendChild(cell);
+        cellEls.push(cell);
+      }
+      group.appendChild(cellsRow);
+      gridContainer.appendChild(group);
+    }
+  }
+
+  function onCellClick(e) {
+    var b = parseInt(e.currentTarget.dataset.bar, 10);
+    var c = parseInt(e.currentTarget.dataset.cell, 10);
+    state.beats[b][c] = !state.beats[b][c];
+    e.currentTarget.classList.toggle('active');
+  }
+
+  // --- Controls ---
+  barsSelect.addEventListener('change', function () {
+    var newBars = parseInt(barsSelect.value, 10);
+    if (playing) stopPlayback();
+    // Keep existing bars, add or trim
+    while (state.beats.length < newBars) {
+      var bar = [];
+      for (var i = 0; i < cellsPerBar(); i++) bar.push(false);
+      state.beats.push(bar);
+    }
+    state.beats.length = newBars;
+    state.bars = newBars;
+    buildGrid();
+  });
+
+  tempoSlider.addEventListener('input', function () {
+    state.tempo = parseInt(tempoSlider.value, 10);
+    tempoDisplay.textContent = state.tempo;
+  });
+
+  subdivSelect.addEventListener('change', function () {
+    var newSubdiv = parseInt(subdivSelect.value, 10);
+    var oldSubdiv = state.subdiv;
+    if (playing) stopPlayback();
+
+    // Convert each bar through 16th-note grid
+    var newBeats = [];
+    for (var b = 0; b < state.bars; b++) {
+      var sixteenths = toSixteenths(state.beats[b], oldSubdiv);
+      newBeats.push(fromSixteenths(sixteenths, newSubdiv));
+    }
+    state.subdiv = newSubdiv;
+    state.beats = newBeats;
+    buildGrid();
+  });
+
+  // --- Transport ---
+  playBtn.addEventListener('click', function () {
+    if (playing) {
+      stopPlayback();
+    } else {
+      startPlayback();
+    }
+  });
+
+  clearBtn.addEventListener('click', function () {
+    for (var b = 0; b < state.bars; b++) {
+      for (var c = 0; c < cellsPerBar(); c++) {
+        state.beats[b][c] = false;
+      }
+    }
+    cellEls.forEach(function (el) { el.classList.remove('active'); });
+  });
+
+  // --- Playback engine ---
+  function startPlayback() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    playing = true;
+    playBtn.textContent = 'Stop';
+    playBtn.classList.add('playing');
+
+    currentStep = 0;
+    scheduledEvents = [];
+    nextNoteTime = audioCtx.currentTime + 0.05;
+
+    schedulerTimer = setInterval(scheduler, timerInterval);
+    rafId = requestAnimationFrame(updatePlayhead);
+  }
+
+  function stopPlayback() {
+    playing = false;
+    playBtn.textContent = 'Play';
+    playBtn.classList.remove('playing');
+
+    if (schedulerTimer !== null) {
+      clearInterval(schedulerTimer);
+      schedulerTimer = null;
+    }
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    scheduledEvents = [];
+
+    // Clear playhead
+    cellEls.forEach(function (el) { el.classList.remove('playhead'); });
+  }
+
+  function secondsPerCell() {
+    // tempo is in BPM (quarter notes per minute)
+    // quarter note = 60/tempo seconds
+    // subdivision factor: quarter=1, eighth=2, sixteenth=4
+    var factor = state.subdiv / 4;
+    return 60.0 / (state.tempo * factor);
+  }
+
+  function scheduler() {
+    var total = totalCells();
+    while (nextNoteTime < audioCtx.currentTime + lookahead) {
+      var bar = Math.floor(currentStep / cellsPerBar());
+      var cell = currentStep % cellsPerBar();
+      var isActive = state.beats[bar] && state.beats[bar][cell];
+      var isDownbeat = (cell % (state.subdiv / 4)) === 0;
+
+      scheduledEvents.push({
+        time: nextNoteTime,
+        step: currentStep
+      });
+
+      if (isActive) {
+        scheduleClick(nextNoteTime, isDownbeat);
+      }
+
+      nextNoteTime += secondsPerCell();
+      currentStep = (currentStep + 1) % total;
+    }
+  }
+
+  function scheduleClick(time, isDownbeat) {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.frequency.value = isDownbeat ? 1000 : 800;
+    osc.type = 'sine';
+
+    gain.gain.setValueAtTime(0.3, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+
+    osc.start(time);
+    osc.stop(time + 0.03);
+  }
+
+  // --- Visual playhead sync ---
+  function updatePlayhead() {
+    if (!playing) return;
+    var now = audioCtx.currentTime;
+
+    // Remove past events and update playhead
+    while (scheduledEvents.length > 0 && scheduledEvents[0].time <= now) {
+      var evt = scheduledEvents.shift();
+      // Clear old playhead
+      cellEls.forEach(function (el) { el.classList.remove('playhead'); });
+      // Set new playhead
+      if (cellEls[evt.step]) {
+        cellEls[evt.step].classList.add('playhead');
+      }
+    }
+
+    rafId = requestAnimationFrame(updatePlayhead);
+  }
+
+  // --- Init ---
+  initBeats();
+  buildGrid();
+})();
+</script>
+</body>
+</html>
