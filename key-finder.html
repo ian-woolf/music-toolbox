@@ -77,6 +77,29 @@
     border-color: rgba(255,255,255,0.1);
   }
 
+  .clear-btn {
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: #ccc;
+    background: #2e2e48;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 10px;
+    padding: 8px 20px;
+    font-family: inherit;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .clear-btn:hover {
+    background: #3a3a58;
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  .clear-btn.hidden {
+    visibility: hidden;
+  }
+
   /* --- Results --- */
   .results {
     width: 100%;
@@ -182,6 +205,7 @@
   <div class="section-label">Select Chords</div>
   <div class="chord-row" id="majorRow"></div>
   <div class="chord-row" id="minorRow"></div>
+  <button class="clear-btn hidden" id="clearBtn">Clear</button>
 </div>
 
 <div class="results" id="results">
@@ -255,6 +279,8 @@
   var majorRow = document.getElementById('majorRow');
   var minorRow = document.getElementById('minorRow');
   var resultsEl = document.getElementById('results');
+  var clearBtn = document.getElementById('clearBtn');
+  var allBtns = [];
 
   function createBtn(chord, parent) {
     var btn = document.createElement('div');
@@ -271,13 +297,22 @@
       updateResults();
     });
     parent.appendChild(btn);
+    allBtns.push(btn);
   }
 
   MAJOR_CHORDS.forEach(function (c) { createBtn(c, majorRow); });
   MINOR_CHORDS.forEach(function (c) { createBtn(c, minorRow); });
 
+  clearBtn.addEventListener('click', function () {
+    selectedChords.clear();
+    allBtns.forEach(function (b) { b.classList.remove('active'); });
+    updateResults();
+  });
+
   // --- Update results ---
   function updateResults() {
+    clearBtn.classList.toggle('hidden', selectedChords.size === 0);
+
     if (selectedChords.size === 0) {
       resultsEl.innerHTML = '<div class="empty-state">Select chords above to find matching keys</div>';
       return;
