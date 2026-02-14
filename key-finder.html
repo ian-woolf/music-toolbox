@@ -90,6 +90,20 @@
     margin-top: 20px;
   }
 
+  .results-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #6a6a88;
+    margin-bottom: 12px;
+  }
+
+  .missing-info {
+    font-size: 0.85rem;
+    color: #c97b3a;
+    margin-top: 10px;
+  }
+
   /* --- Key card --- */
   .key-card {
     background: #24243a;
@@ -269,61 +283,96 @@
       return;
     }
 
-    // Find matching keys
-    var matches = ALL_KEYS.filter(function (key) {
+    var selected = Array.from(selectedChords);
+    var total = selected.length;
+
+    // Score all keys by how many selected chords they contain
+    var scored = ALL_KEYS.map(function (key) {
       var chordSet = new Set(key.chords);
-      var allFound = true;
-      selectedChords.forEach(function (sc) {
-        if (!chordSet.has(sc)) allFound = false;
+      var missing = [];
+      selected.forEach(function (sc) {
+        if (!chordSet.has(sc)) missing.push(sc);
       });
-      return allFound;
+      return { key: key, missing: missing, score: total - missing.length };
     });
 
-    if (matches.length === 0) {
-      resultsEl.innerHTML = '<div class="empty-state">No keys contain all selected chords</div>';
+    var exact = scored.filter(function (s) { return s.score === total; });
+
+    resultsEl.innerHTML = '';
+
+    if (exact.length > 0) {
+      exact.forEach(function (s) { renderCard(s); });
       return;
     }
 
-    resultsEl.innerHTML = '';
-    matches.forEach(function (key) {
-      var card = document.createElement('div');
-      card.className = 'key-card';
+    // No exact matches — find closest
+    var maxScore = 0;
+    scored.forEach(function (s) { if (s.score > maxScore) maxScore = s.score; });
 
-      var nameEl = document.createElement('div');
-      nameEl.className = 'key-name';
-      nameEl.textContent = key.name;
-      card.appendChild(nameEl);
+    if (maxScore === 0) {
+      resultsEl.innerHTML = '<div class="empty-state">No keys contain any of the selected chords</div>';
+      return;
+    }
 
-      var row = document.createElement('div');
-      row.className = 'degree-row';
+    var closest = scored.filter(function (s) { return s.score === maxScore; });
 
-      key.chords.forEach(function (chord, i) {
-        var cell = document.createElement('div');
-        cell.className = 'degree-cell';
+    var label = document.createElement('div');
+    label.className = 'results-label';
+    label.textContent = 'Closest matches \u2014 ' + maxScore + ' of ' + total + ' chords';
+    resultsEl.appendChild(label);
 
-        var isDim = chord.indexOf('dim') !== -1;
-        if (!isDim && selectedChords.has(chord)) {
-          cell.classList.add('highlighted');
-        } else {
-          cell.classList.add('dimmed');
-        }
+    closest.forEach(function (s) { renderCard(s); });
+  }
 
-        var numSpan = document.createElement('span');
-        numSpan.className = 'degree-num';
-        numSpan.textContent = (i + 1);
-        cell.appendChild(numSpan);
+  function renderCard(scored) {
+    var key = scored.key;
+    var missing = scored.missing;
 
-        var chordSpan = document.createElement('span');
-        chordSpan.className = 'degree-chord';
-        chordSpan.textContent = chord;
-        cell.appendChild(chordSpan);
+    var card = document.createElement('div');
+    card.className = 'key-card';
 
-        row.appendChild(cell);
-      });
+    var nameEl = document.createElement('div');
+    nameEl.className = 'key-name';
+    nameEl.textContent = key.name;
+    card.appendChild(nameEl);
 
-      card.appendChild(row);
-      resultsEl.appendChild(card);
+    var row = document.createElement('div');
+    row.className = 'degree-row';
+
+    key.chords.forEach(function (chord, i) {
+      var cell = document.createElement('div');
+      cell.className = 'degree-cell';
+
+      var isDim = chord.indexOf('dim') !== -1;
+      if (!isDim && selectedChords.has(chord)) {
+        cell.classList.add('highlighted');
+      } else {
+        cell.classList.add('dimmed');
+      }
+
+      var numSpan = document.createElement('span');
+      numSpan.className = 'degree-num';
+      numSpan.textContent = (i + 1);
+      cell.appendChild(numSpan);
+
+      var chordSpan = document.createElement('span');
+      chordSpan.className = 'degree-chord';
+      chordSpan.textContent = chord;
+      cell.appendChild(chordSpan);
+
+      row.appendChild(cell);
     });
+
+    card.appendChild(row);
+
+    if (missing.length > 0) {
+      var missingEl = document.createElement('div');
+      missingEl.className = 'missing-info';
+      missingEl.textContent = 'Outside key: ' + missing.join(', ');
+      card.appendChild(missingEl);
+    }
+
+    resultsEl.appendChild(card);
   }
 })();
 </script>
