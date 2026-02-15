@@ -552,19 +552,32 @@
   }
 
   function scheduleClick(time, isDownbeat) {
-    var osc = audioCtx.createOscillator();
+    // Noise burst shaped by a bandpass filter — mimics muted guitar strum
+    var bufLen = Math.ceil(audioCtx.sampleRate * 0.06);
+    var buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var i = 0; i < bufLen; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    var noise = audioCtx.createBufferSource();
+    noise.buffer = buf;
+
+    var filter = audioCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = isDownbeat ? 800 : 1100;
+    filter.Q.value = 1.2;
+
     var gain = audioCtx.createGain();
-    osc.connect(gain);
+    gain.gain.setValueAtTime(0.6, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+
+    noise.connect(filter);
+    filter.connect(gain);
     gain.connect(audioCtx.destination);
 
-    osc.frequency.value = isDownbeat ? 1000 : 800;
-    osc.type = 'sine';
-
-    gain.gain.setValueAtTime(0.3, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
-
-    osc.start(time);
-    osc.stop(time + 0.03);
+    noise.start(time);
+    noise.stop(time + 0.06);
   }
 
   // --- Visual playhead sync ---
